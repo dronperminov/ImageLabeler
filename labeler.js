@@ -4,6 +4,7 @@ var startPoint = null
 var endPoint = null
 var currBox = null
 var entities = []
+var entities_boxes = []
 
 var moveIndex = -1
 var movePoint = null
@@ -11,10 +12,15 @@ var movePoint = null
 var resizeIndex = -1
 var resizeType = null
 var resizePoint = null
+var borders = [ "left", "top", "right", "bottom"]
 
+var isBlocked = false
+
+var labels = [ "text", "table", "picture" ]
+var colors = [ "255, 0, 0", "0, 255, 0", "0, 0, 255" ]
 var img = $('.labeler-image')
 
-function get_box(startPoint, endPoint) {
+function get_box(startPoint, endPoint, label = "") {
 	x = Math.min(startPoint.x, endPoint.x)
 	y = Math.min(startPoint.y, endPoint.y)
 
@@ -22,6 +28,7 @@ function get_box(startPoint, endPoint) {
 	height = Math.abs(startPoint.y - endPoint.y)
 
 	return { 
+		label: label,
 		x: x,
 		y: y,
 		width: width,
@@ -75,36 +82,46 @@ function show_entities() {
 	$("#entities-data").text(JSON.stringify({ name: "name", entites: entities }, null, "  "));
 }
 
+function get_color(label, opacity = false) {
+	return "rgba(" + colors[labels.indexOf(label)] + (opacity ? ", 0.15" : "") + ")"
+}
+
 img.mousedown(function(e) {
+	if (isBlocked)
+		return
+
 	let index = get_box_index(e.pageX, e.pageY)
 	let resizing = get_box_resize_index(e.pageX, e.pageY)
 
 	if (e.button == 0) {
 		if (index == -1 && resizing == null) {
 			startPoint = { x: e.pageX, y: e.pageY }
-			currBox = $('<div class="label-box" id=box-' + entities.length + ' draggable=false></div>')
+			currBox = $('<div class="label-box" draggable=false></div>')
 			currBox.appendTo(img)
 			moveIndex = -1
 		}
 		else if (resizing == null) {
 			movePoint = { x: e.pageX, y: e.pageY }
-			currBox = $('#box-' + index)
+			currBox = entities_boxes[index]
 			moveIndex = index
 		}
 		else {
 			resizePoint = { x: e.pageX, y: e.pageY }
-			currBox = $('#box-' + resizing.index)
+			currBox = entities_boxes[resizing.index]
 			resizeIndex = resizing.index
 			resizeType = resizing.type
 		}
 	}
 	else if (e.button == 2) {
-		$('#box-' + index).remove()
+		if (index == -1 && resizing != null)
+			index = resizing.index
 
-		for (let i = index + 1; i < entities.length; i++)
-			$('#box-' + i).attr('id', 'box-' + (i - 1));
+		if (index == -1)
+			return
 
+		entities_boxes[index].remove()
 		entities.splice(index, 1)
+		entities_boxes.splice(index, 1)
 	}
 
 	show_entities()
@@ -114,12 +131,65 @@ img.mouseup(function(e) {
 	if (e.button != 0)
 		return
 
+	if (isBlocked) {
+		if (e.target.tagName != "SELECT") {
+			currBox.remove()
+			startPoint = null
+			endPoint = null
+			isBlocked = false
+		}
+
+		return
+	}
+
 	if (moveIndex == -1 && resizeIndex == -1) {
 		endPoint = { x: e.pageX, y: e.pageY }
-		entities.push(get_box(startPoint, endPoint))
+		let width = Math.abs(startPoint.x - endPoint.x)
+		let height = Math.abs(startPoint.y - endPoint.y)
 
-		startPoint = null
-		endPoint = null
+		if (width < diff || height < diff) {
+			currBox.remove()
+			startPoint = null
+			endPoint = null
+			return
+		}
+
+		let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
+		select.appendTo(currBox)
+		select.css({
+			"position" : "relative",
+			"top" : e.offsetY + "px",
+			"left" : e.offsetX + "px",
+		})
+
+		select.focus()
+		isBlocked = true
+
+		select.change(function() {
+			let label = select.val()
+
+			currBox.css("background", get_color(label, true))
+			currBox.css("border", "2px solid " + get_color(label))
+
+			let text = $("<p>" + label + "</p>")
+			text.css({
+				"position" : "relative",
+				"text-align" : "center",
+				"margin" : "0",
+				"color" : get_color(label)
+			})
+
+			select.remove()
+			text.appendTo(currBox)
+
+			entities.push(get_box(startPoint, endPoint, label))
+			entities_boxes.push(currBox)
+
+			startPoint = null
+			endPoint = null
+			isBlocked = false
+			show_entities()
+		})
 	}
 
 	moveIndex = -1
@@ -128,25 +198,30 @@ img.mouseup(function(e) {
 })
 
 img.mousemove(function(e) {
+	if (isBlocked)
+		return
+
 	if (startPoint == null && moveIndex == -1 && resizeIndex == -1) {
 		let index = get_box_index(e.pageX, e.pageY)
 
 		for (let i = 0; i < entities.length; i++)
-			$('#box-' + i).css('border', "3px solid red")
+			entities_boxes[i].css('border', "2px solid " + get_color(entities[i].label))
 
 		if (index != -1) {
-			$('#box-' + index).css('border', "3px solid green")
-			$('#box-' + index).css('cursor', "pointer")
+			entities_boxes[index].css('border', "2px dashed #ffbc00")
+			entities_boxes[index].css('cursor', "pointer")
 			return					
 		}
 
 		let resizing = get_box_resize_index(e.pageX, e.pageY)
 
 		if (resizing != null) {
+			entities_boxes[resizing.index].css('border-' + borders[resizing.type - 1], "2px dashed #ffbc00")
+
 			if (resizing.type == 1 || resizing.type == 3)
-				$('#box-' + resizing.index).css('cursor', "w-resize")
+				entities_boxes[resizing.index].css('cursor', "w-resize")
 			else
-				$('#box-' + resizing.index).css('cursor', "s-resize")
+				entities_boxes[resizing.index].css('cursor', "s-resize")
 			return
 		}
 
@@ -193,6 +268,12 @@ img.mousemove(function(e) {
 			box.height += dy
 		}
 		
+		if (box.height < 1) 
+			resizeType = resizeType == 2 ? 4 : 2;
+
+		if (box.width < 1) 
+			resizeType = resizeType == 3 ? 1 : 3;
+
 		show_entities()
 	}
 	else {
@@ -201,7 +282,7 @@ img.mousemove(function(e) {
 	}
 
 	currBox.css({
-		"border": "3px solid red",
+		"border": "2px dotted #ffbc00",
         "position": "absolute",
         "top": box.y + "px",
         "left": box.x + "px",
