@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Labeler demo</title>
+
+	<meta charset="utf-8">
+
+	<style>
+		.labeler { display: table; }
+		.labeler-image, .labeler-menu { display: table-cell; width: 40%; border: 1px solid #000; vertical-align: top; user-select: none; }
+		.labeler-image img { width: 100%; }
+
+		.labeler-menu { padding: 10px; }
+		.labeler-menu textarea { width: 100%; resize: vertical; min-height: 200px }
+
+		.label-box { user-select: none; }
+
+		.btn { background: #fff; color: #000; border: 2px solid #000; padding: 5px 10px; margin: 1px; }
+		.btn:hover { background: #fff; color: #000; cursor: pointer; border: 3px solid #ffcd00; margin: 0px; }
+	</style>
+</head>
+<body>
+	<div class="labeler" draggable=false oncontextmenu="return false;">
+		<div class="labeler-image" draggable=false>
+			<img id="img" src="img.jpg" draggable=false>
+		</div>
+
+		<div class="labeler-menu">
+			<div class="labeler-entities">
+				<textarea id="entities-data" cols=10></textarea>
+			</div>
+
+			<div class="labeler-tools">
+				<input class="btn" type="submit" id="reset-btn" value="reset"></input>
+				<input class="btn" type="submit" id="skip-btn" value="skip"></input>
+				<input class="btn" type="submit" id="save-btn" value="save"></input>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+	<script src="labeler.js"></script>
+</body>
+</html>
