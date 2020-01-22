@@ -47,7 +47,7 @@ function get_box_index(x, y) {
 	for (let i = 0; i < entities.length; i++) {
 		let box = entities[i]
 
-		if (x > box.x + diff && y > box.y + diff && x < box.x + box.width - diff && y < box.y + box.height - diff)
+		if (x >= box.x + diff && y >= box.y + diff && x <= box.x + box.width - diff && y <= box.y + box.height - diff)
 			return i
 	}
 
@@ -215,6 +215,16 @@ $(document).mouseup(function(e) {
 
 	if (startPoint != null && moveIndex == -1 && resizeIndex == -1) {
 		endPoint = get_point(e)
+
+		let imageWidth = $(".labeler-image img").width()
+		let imageHeight = $(".labeler-image img").height()
+
+		if (endPoint.x > imageWidth)
+			endPoint.x = imageWidth
+
+		if (endPoint.y > imageHeight)
+			endPoint.y = imageHeight
+
 		let width = Math.abs(startPoint.x - endPoint.x)
 		let height = Math.abs(startPoint.y - endPoint.y)
 
@@ -288,8 +298,11 @@ $(document).mousemove(function(e) {
 		return
 	}
 
-	if (!is_valid(p))
+	if ((moveIndex > -1 || resizeIndex > -1) && !is_valid(p))
 		return
+
+	let imageWidth = $(".labeler-image img").width()
+	let imageHeight = $(".labeler-image img").height()
 
 	if (moveIndex > -1) {
 		let dx = p.x - movePoint.x
@@ -338,6 +351,15 @@ $(document).mousemove(function(e) {
 	}
 	else {
 		point = { x: p.x, y: p.y }
+
+		if (!is_valid(p)) {
+			if (point.x > imageWidth)
+				point.x = imageWidth;
+
+			if (point.y > imageHeight)
+				point.y = imageHeight;
+		}
+
 		box = get_box(startPoint, point)
 	}
 
@@ -346,9 +368,6 @@ $(document).mousemove(function(e) {
 
 	if (box.x < 1)
 		box.x = 0;
-
-	let imageWidth = $(".labeler-image img").width()
-	let imageHeight = $(".labeler-image img").height()
 
 	if (box.x + box.width > imageWidth)
 		box.x = imageWidth - box.width;
