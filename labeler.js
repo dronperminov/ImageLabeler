@@ -20,6 +20,13 @@ var labels = [ "text", "table", "picture" ]
 var colors = [ "255, 0, 0", "0, 255, 0", "0, 0, 255" ]
 var img = $('.labeler-image')
 
+var offsetLeft = img.offset().left
+var offsetTop = img.offset().top
+
+function get_point(e) {
+	return { x: e.pageX - offsetLeft, y: e.pageY - offsetTop }
+}
+
 function get_box(startPoint, endPoint, label = "") {
 	x = Math.min(startPoint.x, endPoint.x)
 	y = Math.min(startPoint.y, endPoint.y)
@@ -79,34 +86,100 @@ function get_box_resize_index(x, y) {
 }
 
 function show_entities() {
-	$("#entities-data").text(JSON.stringify({ name: "name", entites: entities }, null, "  "));
+	let image = $('.labeler-image img')
+	let name = image.attr("src")
+	let index = name.lastIndexOf('/')
+
+	if (index > -1)
+		name = name.substring(index)
+
+	width = image.width()
+	height = image.height()
+
+	let tmp = []
+
+	for (let i = 0; i < entities.length; i++) {
+		tmp.push({
+			label: entities[i].label,
+			x: Math.max(0, entities[i].x / width),
+			y: Math.max(0, entities[i].y / height),
+			width: Math.min(entities[i].width / width, 1),
+			height: Math.min(entities[i].height / height, 1),
+		})
+	}
+
+	$("#entities-data").text(JSON.stringify({ name: name, entities: tmp }, null, "  "));
 }
 
 function get_color(label, opacity = false) {
 	return "rgba(" + colors[labels.indexOf(label)] + (opacity ? ", 0.15" : "") + ")"
 }
 
-img.mousedown(function(e) {
+function end_labeling(select) {
+	let label = select.val()
+
+	currBox.css("background", get_color(label, true))
+	currBox.css("outline", "2px solid " + get_color(label))
+
+	let text = $("<p>" + label + "</p>")
+	text.css({
+		"position" : "relative",
+		"text-align" : "center",
+		"margin" : "0",
+		"color" : get_color(label)
+	})
+
+	select.remove()
+	text.appendTo(currBox)
+
+	entities.push(get_box(startPoint, endPoint, label))
+	entities_boxes.push(currBox)
+
+	startPoint = null
+	endPoint = null
+	isBlocked = false
+	show_entities()
+}
+
+function is_valid(p) {
+	let imageWidth = $(".labeler-image img").width()
+	let imageHeight = $(".labeler-image img").height()
+	let dst = moveIndex == -1 && resizeIndex == -1 ? diff : 0;
+
+	if (p.x < -dst || p.y < -dst || p.x > imageWidth + dst || p.y > imageHeight + dst) {
+		console.log("BLOCKED")
+		return false
+	}
+
+	return true
+}
+
+$(document).mousedown(function(e) {
 	if (isBlocked)
 		return
 
-	let index = get_box_index(e.pageX, e.pageY)
-	let resizing = get_box_resize_index(e.pageX, e.pageY)
+	let p = get_point(e)
+
+	if (!is_valid(p))
+		return
+
+	let index = get_box_index(p.x, p.y)
+	let resizing = get_box_resize_index(p.x, p.y)
 
 	if (e.button == 0) {
 		if (index == -1 && resizing == null) {
-			startPoint = { x: e.pageX, y: e.pageY }
+			startPoint = { x: p.x, y: p.y }
 			currBox = $('<div class="label-box" draggable=false></div>')
 			currBox.appendTo(img)
 			moveIndex = -1
 		}
 		else if (resizing == null) {
-			movePoint = { x: e.pageX, y: e.pageY }
+			movePoint = { x: p.x, y: p.y }
 			currBox = entities_boxes[index]
 			moveIndex = index
 		}
 		else {
-			resizePoint = { x: e.pageX, y: e.pageY }
+			resizePoint = { x: p.x, y: p.y }
 			currBox = entities_boxes[resizing.index]
 			resizeIndex = resizing.index
 			resizeType = resizing.type
@@ -127,7 +200,7 @@ img.mousedown(function(e) {
 	show_entities()
 })
 
-img.mouseup(function(e) {
+$(document).mouseup(function(e) {
 	if (e.button != 0)
 		return
 
@@ -143,7 +216,7 @@ img.mouseup(function(e) {
 	}
 
 	if (moveIndex == -1 && resizeIndex == -1) {
-		endPoint = { x: e.pageX, y: e.pageY }
+		endPoint = get_point(e)
 		let width = Math.abs(startPoint.x - endPoint.x)
 		let height = Math.abs(startPoint.y - endPoint.y)
 
@@ -157,38 +230,25 @@ img.mouseup(function(e) {
 		let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
 		select.appendTo(currBox)
 		select.css({
-			"position" : "relative",
-			"top" : e.offsetY + "px",
-			"left" : e.offsetX + "px",
+			"position" : "absolute",
+			"top" : endPoint.y - Math.min(startPoint.y, endPoint.y) + "px",
+			"left" : endPoint.x - Math.min(startPoint.x, endPoint.x) + "px",
 		})
 
 		select.focus()
 		isBlocked = true
 
 		select.change(function() {
-			let label = select.val()
+			end_labeling(select)
+		})
 
-			currBox.css("background", get_color(label, true))
-			currBox.css("border", "2px solid " + get_color(label))
+		select.keydown(function(e) {
+			let option = parseInt(e.key)
 
-			let text = $("<p>" + label + "</p>")
-			text.css({
-				"position" : "relative",
-				"text-align" : "center",
-				"margin" : "0",
-				"color" : get_color(label)
-			})
-
-			select.remove()
-			text.appendTo(currBox)
-
-			entities.push(get_box(startPoint, endPoint, label))
-			entities_boxes.push(currBox)
-
-			startPoint = null
-			endPoint = null
-			isBlocked = false
-			show_entities()
+			if (Number.isInteger(option) && option > 0 && option <= labels.length) {
+				select.prop('selectedIndex', option)
+				end_labeling(select)
+			}
 		})
 	}
 
@@ -197,59 +257,61 @@ img.mouseup(function(e) {
 	show_entities()
 })
 
-img.mousemove(function(e) {
+$(document).mousemove(function(e) {
 	if (isBlocked)
 		return
 
+	let p = get_point(e)
+
 	if (startPoint == null && moveIndex == -1 && resizeIndex == -1) {
-		let index = get_box_index(e.pageX, e.pageY)
+		let index = get_box_index(p.x, p.y)
 
 		for (let i = 0; i < entities.length; i++)
-			entities_boxes[i].css('border', "2px solid " + get_color(entities[i].label))
+			entities_boxes[i].css('outline', "2px solid " + get_color(entities[i].label))
 
 		if (index != -1) {
-			entities_boxes[index].css('border', "2px dashed #ffbc00")
-			entities_boxes[index].css('cursor', "pointer")
+			entities_boxes[index].css('outline', "2px dashed #ffbc00")
+			img.css('cursor', "pointer")
 			return					
 		}
 
-		let resizing = get_box_resize_index(e.pageX, e.pageY)
+		img.css('cursor', "default")
+
+		let resizing = get_box_resize_index(p.x, p.y)
 
 		if (resizing != null) {
-			entities_boxes[resizing.index].css('border-' + borders[resizing.type - 1], "2px dashed #ffbc00")
-
 			if (resizing.type == 1 || resizing.type == 3)
-				entities_boxes[resizing.index].css('cursor', "w-resize")
+				img.css('cursor', "w-resize")
 			else
-				entities_boxes[resizing.index].css('cursor', "s-resize")
+				img.css('cursor', "s-resize")
 			return
 		}
 
 		return
 	}
 
-	if (moveIndex > -1) {
-		let dx = e.pageX - movePoint.x
-		let dy = e.pageY - movePoint.y
+	if (!is_valid(p))
+		return
 
-		movePoint.x = e.pageX
-		movePoint.y = e.pageY
+	if (moveIndex > -1) {
+		let dx = p.x - movePoint.x
+		let dy = p.y - movePoint.y
+
+		movePoint.x = p.x
+		movePoint.y = p.y
 
 		box = entities[moveIndex]
 		box.x += dx
 		box.y += dy
 
-		if (box.x + box.width > img.width)
-			box.x = img.width - box.width - 1
-
 		show_entities()
 	}
 	else if (resizeIndex > -1) {
-		let dx = e.pageX - resizePoint.x
-		let dy = e.pageY - resizePoint.y
+		let dx = p.x - resizePoint.x
+		let dy = p.y - resizePoint.y
 
-		resizePoint.x = e.pageX
-		resizePoint.y = e.pageY
+		resizePoint.x = p.x
+		resizePoint.y = p.y
 
 		box = entities[resizeIndex]
 
@@ -277,12 +339,27 @@ img.mousemove(function(e) {
 		show_entities()
 	}
 	else {
-		point = { x: e.pageX, y: e.pageY }
+		point = { x: p.x, y: p.y }
 		box = get_box(startPoint, point)
 	}
 
+	if (box.y < 1)
+		box.y = 0;
+
+	if (box.x < 1)
+		box.x = 0;
+
+	let imageWidth = $(".labeler-image img").width()
+	let imageHeight = $(".labeler-image img").height()
+
+	if (box.x + box.width > imageWidth)
+		box.x = imageWidth - box.width;
+
+	if (box.y + box.height > imageHeight)
+		box.y = imageHeight - box.height;
+
 	currBox.css({
-		"border": "2px dotted #ffbc00",
+		"outline": "2px dotted #ffbc00",
         "position": "absolute",
         "top": box.y + "px",
         "left": box.x + "px",
@@ -290,3 +367,5 @@ img.mousemove(function(e) {
         "height": box.height + "px",
 	})
 })
+
+show_entities()

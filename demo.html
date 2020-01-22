@@ -7,11 +7,13 @@
 
 	<style>
 		.labeler { display: table; }
-		.labeler-image, .labeler-menu { display: table-cell; width: 40%; border: 1px solid #000; vertical-align: top; user-select: none; }
-		.labeler-image img { width: 100%; }
+		.labeler-image, .labeler-menu { display: table-cell; width: 40%; vertical-align: top; user-select: none; }
+		.labeler-image img { width: 100%; outline: 1px solid #000; }
+
+		.labeler-image { position: relative; }
 
 		.labeler-menu { padding: 10px; }
-		.labeler-menu textarea { width: 100%; resize: vertical; min-height: 200px; height: 90vh }
+		.labeler-menu textarea { width: 100%; resize: vertical; min-height: 200px; height: 50vh }
 
 		.label-box { user-select: none; }
 
