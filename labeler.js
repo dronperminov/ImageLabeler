@@ -146,10 +146,8 @@ function is_valid(p) {
 	let imageHeight = $(".labeler-image img").height()
 	let dst = moveIndex == -1 && resizeIndex == -1 ? diff : 0;
 
-	if (p.x < -dst || p.y < -dst || p.x > imageWidth + dst || p.y > imageHeight + dst) {
-		console.log("BLOCKED")
+	if (p.x < -dst || p.y < -dst || p.x > imageWidth + dst || p.y > imageHeight + dst)
 		return false
-	}
 
 	return true
 }
@@ -215,7 +213,7 @@ $(document).mouseup(function(e) {
 		return
 	}
 
-	if (moveIndex == -1 && resizeIndex == -1) {
+	if (startPoint != null && moveIndex == -1 && resizeIndex == -1) {
 		endPoint = get_point(e)
 		let width = Math.abs(startPoint.x - endPoint.x)
 		let height = Math.abs(startPoint.y - endPoint.y)
@@ -360,12 +358,23 @@ $(document).mousemove(function(e) {
 
 	currBox.css({
 		"outline": "2px dotted #ffbc00",
-        "position": "absolute",
-        "top": box.y + "px",
-        "left": box.x + "px",
-        "width": box.width + "px",
-        "height": box.height + "px",
+		"position": "absolute",
+		"top": box.y + "px",
+		"left": box.x + "px",
+		"width": box.width + "px",
+		"height": box.height + "px",
 	})
+})
+
+$("#reset-btn").click(function(e) {
+	if (entities.length > 0 && confirm("Remove all: are you sure?")) {
+		for (let i = 0; i < entities_boxes.length; i++)
+			entities_boxes[i].remove()
+
+		entities = []
+		entities_boxes = []
+		show_entities()
+	}
 })
 
 show_entities()
