@@ -21,11 +21,20 @@ function Labeler(labels, colors) {
 
 	this.img = $('.labeler-image')
 
+	this.scale_value = 2
+	this.scale = 1
+
 	this.offsetLeft = this.img.offset().left
 	this.offsetTop = this.img.offset().top
 }
 
 Labeler.prototype.get_point = function(e) {
+	if (this.scale != 1) {
+		let dx = this.img.scrollLeft()
+		let dy = this.img.scrollTop()
+
+		return { x: (e.pageX + dx - this.offsetLeft) / this.scale, y: (e.pageY + dy - this.offsetTop) / this.scale }
+	}
 	return { x: e.pageX - this.offsetLeft, y: e.pageY - this.offsetTop }
 }
 
@@ -102,10 +111,10 @@ Labeler.prototype.show_entities = function() {
 	for (let i = 0; i < this.entities.length; i++) {
 		tmp.push({
 			label: this.entities[i].label,
-			x: Math.max(0, this.entities[i].x / width),
-			y: Math.max(0, this.entities[i].y / height),
-			width: Math.min(this.entities[i].width / width, 1),
-			height: Math.min(this.entities[i].height / height, 1),
+			x: Math.max(0, this.entities[i].x / width * this.scale),
+			y: Math.max(0, this.entities[i].y / height * this.scale),
+			width: Math.min(this.entities[i].width / width * this.scale, 1),
+			height: Math.min(this.entities[i].height / height * this.scale, 1),
 		})
 	}
 
@@ -147,8 +156,8 @@ Labeler.prototype.start_labeling = function() {
 	select.appendTo(this.currBox)
 	select.css({
 		"position" : "absolute",
-		"top" : this.endPoint.y - Math.min(this.startPoint.y, this.endPoint.y) + "px",
-		"left" : this.endPoint.x - Math.min(this.startPoint.x, this.endPoint.x) + "px",
+		"top" : (this.endPoint.y - Math.min(this.startPoint.y, this.endPoint.y)) * this.scale + "px",
+		"left" : (this.endPoint.x - Math.min(this.startPoint.x, this.endPoint.x)) * this.scale + "px",
 	})
 
 	select.focus()
@@ -200,7 +209,7 @@ Labeler.prototype.is_valid = function(p) {
 	let imageHeight = $(".labeler-image img").height()
 	let dst = this.moveIndex == -1 && this.resizeIndex == -1 ? this.diff : 0;
 
-	if (p.x < -dst || p.y < -dst || p.x > imageWidth + dst || p.y > imageHeight + dst)
+	if (p.x < -dst || p.y < -dst || p.x > imageWidth / this.scale + dst || p.y > imageHeight / this.scale + dst)
 		return false
 
 	return true
@@ -284,11 +293,11 @@ Labeler.prototype.mouseup = function(e) {
 		let imageWidth = $(".labeler-image img").width()
 		let imageHeight = $(".labeler-image img").height()
 
-		if (this.endPoint.x > imageWidth)
-			this.endPoint.x = imageWidth
+		if (this.endPoint.x > imageWidth / this.scale)
+			this.endPoint.x = imageWidth / this.scale
 
-		if (this.endPoint.y > imageHeight)
-			this.endPoint.y = imageHeight
+		if (this.endPoint.y > imageHeight / this.scale)
+			this.endPoint.y = imageHeight / this.scale
 
 		let width = Math.abs(this.startPoint.x - this.endPoint.x)
 		let height = Math.abs(this.startPoint.y - this.endPoint.y)
@@ -371,11 +380,11 @@ Labeler.prototype.mousemove = function(e) {
 		point = { x: p.x, y: p.y }
 
 		if (!this.is_valid(p)) {
-			if (point.x > imageWidth)
-				point.x = imageWidth;
+			if (point.x > imageWidth / this.scale)
+				point.x = imageWidth / this.scale;
 
-			if (point.y > imageHeight)
-				point.y = imageHeight;
+			if (point.y > imageHeight / this.scale)
+				point.y = imageHeight / this.scale;
 		}
 
 		box = this.get_box(this.startPoint, point)
@@ -387,20 +396,40 @@ Labeler.prototype.mousemove = function(e) {
 	if (box.x < 0)
 		box.x = 0;
 
-	if (box.x + box.width > imageWidth)
-		box.x = imageWidth - box.width;
+	if (box.x + box.width > imageWidth / this.scale)
+		box.x = imageWidth / this.scale - box.width;
 
-	if (box.y + box.height > imageHeight)
-		box.y = imageHeight - box.height;
+	if (box.y + box.height > imageHeight / this.scale)
+		box.y = imageHeight / this.scale - box.height;
 
 	this.currBox.css({
 		"outline": "2px dotted #ffbc00",
 		"position": "absolute",
-		"top": box.y + "px",
-		"left": box.x + "px",
-		"width": box.width + "px",
-		"height": box.height + "px",
+		"top": box.y * this.scale + "px",
+		"left": box.x * this.scale + "px",
+		"width": box.width * this.scale + "px",
+		"height": box.height * this.scale + "px",
 	})
+}
+
+Labeler.prototype.keydown = function(e) {
+	if (e.key == "+" || e.key == "=" || e.key == "-") {
+		if (e.key == "+" || e.key == "=")
+			this.scale = Math.min(4, this.scale * this.scale_value);
+		else
+			this.scale = Math.max(1.0 / this.scale_value, this.scale / this.scale_value);
+
+		$(".labeler-image img").css("width", (this.scale * 100) + "%")
+
+		for (let i = 0; i < this.entities_boxes.length; i++) {
+			this.entities_boxes[i].css({
+				"left" : this.entities[i].x * this.scale,
+				"top" : this.entities[i].y * this.scale,
+				"width" : this.entities[i].width * this.scale,
+				"height" : this.entities[i].height * this.scale,
+			})
+		}
+	}
 }
 
 const labels = [ "text", "table", "picture" ]
@@ -411,6 +440,7 @@ let labeler = new Labeler(labels, colors)
 $(document).mousedown(function(e) { labeler.mousedown(e) })
 $(document).mouseup(function(e) { labeler.mouseup(e) })
 $(document).mousemove(function(e) { labeler.mousemove(e) })
+$(document).keydown(function(e) { labeler.keydown(e) })
 
 labeler.show_entities()
 
