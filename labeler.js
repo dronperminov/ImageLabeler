@@ -115,6 +115,57 @@ function get_color(label, opacity = false) {
 	return "rgba(" + colors[labels.indexOf(label)] + (opacity ? ", 0.15" : "") + ")"
 }
 
+function boxes_hover(p) {
+	let index = get_box_index(p.x, p.y)
+
+	for (let i = 0; i < entities.length; i++)
+		entities_boxes[i].css('outline', "2px solid " + get_color(entities[i].label))
+
+	if (index != -1) {
+		entities_boxes[index].css('outline', "2px dashed #ffbc00")
+		img.css('cursor', "pointer")
+		return
+	}
+
+	img.css('cursor', "default")
+
+	let resizing = get_box_resize_index(p.x, p.y)
+
+	if (resizing != null) {
+		if (resizing.type == 1 || resizing.type == 3)
+			img.css('cursor', "w-resize")
+		else
+			img.css('cursor', "s-resize")
+		return
+	}
+}
+
+function start_labeling() {
+	let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
+	select.appendTo(currBox)
+	select.css({
+		"position" : "absolute",
+		"top" : endPoint.y - Math.min(startPoint.y, endPoint.y) + "px",
+		"left" : endPoint.x - Math.min(startPoint.x, endPoint.x) + "px",
+	})
+
+	select.focus()
+	isBlocked = true
+
+	select.change(function() {
+		end_labeling(select)
+	})
+
+	select.keydown(function(e) {
+		let option = parseInt(e.key)
+
+		if (Number.isInteger(option) && option > 0 && option <= labels.length) {
+			select.prop('selectedIndex', option)
+			end_labeling(select)
+		}
+	})
+}
+
 function end_labeling(select) {
 	let label = select.val()
 
@@ -235,29 +286,7 @@ $(document).mouseup(function(e) {
 			return
 		}
 
-		let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
-		select.appendTo(currBox)
-		select.css({
-			"position" : "absolute",
-			"top" : endPoint.y - Math.min(startPoint.y, endPoint.y) + "px",
-			"left" : endPoint.x - Math.min(startPoint.x, endPoint.x) + "px",
-		})
-
-		select.focus()
-		isBlocked = true
-
-		select.change(function() {
-			end_labeling(select)
-		})
-
-		select.keydown(function(e) {
-			let option = parseInt(e.key)
-
-			if (Number.isInteger(option) && option > 0 && option <= labels.length) {
-				select.prop('selectedIndex', option)
-				end_labeling(select)
-			}
-		})
+		start_labeling()
 	}
 
 	moveIndex = -1
@@ -272,29 +301,7 @@ $(document).mousemove(function(e) {
 	let p = get_point(e)
 
 	if (startPoint == null && moveIndex == -1 && resizeIndex == -1) {
-		let index = get_box_index(p.x, p.y)
-
-		for (let i = 0; i < entities.length; i++)
-			entities_boxes[i].css('outline', "2px solid " + get_color(entities[i].label))
-
-		if (index != -1) {
-			entities_boxes[index].css('outline', "2px dashed #ffbc00")
-			img.css('cursor', "pointer")
-			return					
-		}
-
-		img.css('cursor', "default")
-
-		let resizing = get_box_resize_index(p.x, p.y)
-
-		if (resizing != null) {
-			if (resizing.type == 1 || resizing.type == 3)
-				img.css('cursor', "w-resize")
-			else
-				img.css('cursor', "s-resize")
-			return
-		}
-
+		boxes_hover(p)
 		return
 	}
 
