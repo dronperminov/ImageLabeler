@@ -236,7 +236,7 @@ Labeler.prototype.mousedown = function(e) {
 			this.currBox.appendTo(this.img)
 			this.moveIndex = -1
 		}
-		else if (resizing == null) {
+		else if (index != -1) {
 			this.movePoint = { x: p.x, y: p.y }
 			this.currBox = this.entities_boxes[index]
 			this.moveIndex = index
@@ -268,7 +268,7 @@ Labeler.prototype.mouseup = function(e) {
 		return
 
 	if (this.isBlocked) {
-		if (e.target.tagName != "SELECT") {
+		if (e.target.tagName != "SELECT" && e.target.tagName != "OPTION") {
 			this.currBox.remove()
 			this.startPoint = null
 			this.endPoint = null
@@ -413,6 +413,11 @@ $(document).mouseup(function(e) { labeler.mouseup(e) })
 $(document).mousemove(function(e) { labeler.mousemove(e) })
 
 labeler.show_entities()
+
+$(document).on("dragstart", function(e) {
+	if (e.target.nodeName.toUpperCase() == "IMG")
+		return false;
+});
 
 $("#reset-btn").click(function(e) {
 	labeler.remove_all()
