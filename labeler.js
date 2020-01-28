@@ -67,10 +67,10 @@ Labeler.prototype.get_box_index = function(x, y) {
 
 Labeler.prototype.check_line = function(x, y, x1, y1, x2, y2) {
 	if (x1 == x2)
-		return x > x1 - this.diff && x < x1 + this.diff && y >= y1 && y <= y2
+		return x > x1 - this.diff && x < x1 + this.diff && y >= y1 - this.diff && y <= y2 + this.diff
 
 	if (y1 == y2)
-		return y > y1 - this.diff && y < y1 + this.diff && x >= x1 && x <= x2
+		return y > y1 - this.diff && y < y1 + this.diff && x >= x1 - this.diff && x <= x2 + this.diff
 
 	return false
 }
@@ -79,16 +79,33 @@ Labeler.prototype.get_box_resize_index = function(x, y) {
 	for (let i = 0; i < this.entities.length; i++) {
 		let box = this.entities[i]
 
-		if (this.check_line(x, y, box.x, box.y, box.x, box.y + box.height))
+		let line1 = this.check_line(x, y, box.x, box.y, box.x, box.y + box.height)
+		let line2 = this.check_line(x, y, box.x, box.y, box.x + box.width, box.y)
+		let line3 = this.check_line(x, y, box.x + box.width, box.y, box.x + box.width, box.y + box.height)
+		let line4 = this.check_line(x, y, box.x, box.y + box.height, box.x + box.width, box.y + box.height)
+
+		if (line1 && line2)
+			return { index: i, type: -1 }
+
+		if (line2 && line3)
+			return { index: i, type: -2 }
+
+		if (line3 && line4)
+			return { index: i, type: -3 }
+
+		if (line1 && line4)
+			return { index: i, type: -4 }
+
+		if (line1)
 			return { index: i, type: 1 }
 			
-		if (this.check_line(x, y, box.x, box.y, box.x + box.width, box.y))
+		if (line2)
 			return { index: i, type: 2 }
 
-		if (this.check_line(x, y, box.x + box.width, box.y, box.x + box.width, box.y + box.height))
+		if (line3)
 			return { index: i, type: 3 }
 			
-		if (this.check_line(x, y, box.x, box.y + box.height, box.x + box.width, box.y + box.height))
+		if (line4)
 			return { index: i, type: 4 }
 	}
 
@@ -144,7 +161,11 @@ Labeler.prototype.boxes_hover = function(p) {
 	if (resizing != null) {
 		this.entities_boxes[resizing.index].css('outline', "2px dashed #ffbc00")
 
-		if (resizing.type == 1 || resizing.type == 3)
+		if (resizing.type == -1 || resizing.type == -3)
+			$("body").css('cursor', "nwse-resize")
+		else if (resizing.type == -2 || resizing.type == -4)
+			$("body").css('cursor', "nesw-resize")
+		else if (resizing.type == 1 || resizing.type == 3)
 			$("body").css('cursor', "w-resize")
 		else
 			$("body").css('cursor', "s-resize")
@@ -153,11 +174,14 @@ Labeler.prototype.boxes_hover = function(p) {
 
 Labeler.prototype.start_labeling = function() {
 	let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
+
 	select.appendTo(this.currBox)
+	let width = (this.startPoint.x < this.endPoint.x ? select.width() : 0)
+
 	select.css({
 		"position" : "absolute",
 		"top" : (this.endPoint.y - Math.min(this.startPoint.y, this.endPoint.y)) * this.scale + "px",
-		"left" : (this.endPoint.x - Math.min(this.startPoint.x, this.endPoint.x)) * this.scale + "px",
+		"left" : (this.endPoint.x - Math.min(this.startPoint.x, this.endPoint.x) - width) * this.scale + "px",
 	})
 
 	select.focus()
@@ -355,26 +379,53 @@ Labeler.prototype.mousemove = function(e) {
 
 		box = this.entities[this.resizeIndex]
 
-		if (this.resizeType == 1) {
+		if (this.resizeType == 1 || this.resizeType == -1  || this.resizeType == -4) {
 			box.x += dx
 			box.width -= dx
 		}
-		else if (this.resizeType == 2) {
+
+		if (this.resizeType == 2 || this.resizeType == -1 || this.resizeType == -2) {
 			box.y += dy
 			box.height -= dy
 		}
-		else if (this.resizeType == 3) {
+
+		if (this.resizeType == 3 || this.resizeType == -2 || this.resizeType == -3) {
 			box.width += dx
 		}
-		else if (this.resizeType == 4) {
+
+		if (this.resizeType == 4 || this.resizeType == -3 || this.resizeType == -4) {
 			box.height += dy
 		}
-		
-		if (box.height < 1) 
-			this.resizeType = this.resizeType == 2 ? 4 : 2;
 
-		if (box.width < 1) 
-			this.resizeType = this.resizeType == 3 ? 1 : 3;
+		if (box.height < 1) {
+			if (this.resizeType == 2)
+				this.resizeType = 4
+			else if (this.resizeType == 4)
+				this.resizeType = 2
+			else if (this.resizeType == -3)
+				this.resizeType = -2
+			else if (this.resizeType == -2)
+				this.resizeType = -3
+			else if (this.resizeType == -1)
+				this.resizeType = -4
+			else if (this.resizeType == -4)
+				this.resizeType = -1
+		}
+
+		if (box.width < 1) {
+			if (this.resizeType == 3)
+				this.resizeType = 1
+			else if (this.resizeType == 1)
+				this.resizeType = 3
+			else if (this.resizeType == -1)
+				this.resizeType = -2
+			else if (this.resizeType == -2)
+				this.resizeType = -1
+			else if (this.resizeType == -3)
+				this.resizeType = -4
+			else if (this.resizeType == -4)
+				this.resizeType = -3
+		}
 	}
 	else {
 		point = { x: p.x, y: p.y }
@@ -433,7 +484,7 @@ Labeler.prototype.keydown = function(e) {
 }
 
 const labels = [ "text", "table", "picture" ]
-const colors = [ "255, 0, 0", "0, 255, 0", "0, 0, 255" ]
+const colors = [ "0, 0, 255", "0, 255, 0", "255, 0, 0" ]
 
 let labeler = new Labeler(labels, colors)
 
