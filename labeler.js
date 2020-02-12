@@ -463,6 +463,49 @@ Labeler.prototype.mousemove = function(e) {
 	})
 }
 
+Labeler.prototype.init_from_entities = function(boxes) {
+	this.entities = []
+	this.entities_boxes = []
+
+	let imageWidth = $(".labeler-image img").width()
+	let imageHeight = $(".labeler-image img").height()
+
+	for (let i = 0; i < boxes.length; i++) {
+		this.entities.push({
+			label : boxes[i].label,
+			x : Math.floor(boxes[i].x * imageWidth),
+			y : Math.floor(boxes[i].y * imageHeight),
+			width : Math.floor(boxes[i].width * imageWidth),
+			height : Math.floor(boxes[i].height * imageHeight) })
+
+		let box = $('<div class="label-box" draggable=false></div>')
+		
+		box.appendTo(this.img)		
+		box.css({
+			"outline": "2px solid " + this.get_color(boxes[i].label),
+			"position": "absolute",
+			"top": boxes[i].y * imageHeight * this.scale + "px",
+			"left": boxes[i].x * imageWidth * this.scale + "px",
+			"width": boxes[i].width * imageWidth * this.scale + "px",
+			"height": boxes[i].height * imageHeight * this.scale + "px",
+			"background": this.get_color(boxes[i].label, true)
+		})
+
+		let text = $("<p>" + boxes[i].label + "</p>")
+		text.css({
+			"position" : "relative",
+			"text-align" : "center",
+			"margin" : "0",
+			"color" : this.get_color(boxes[i].label)
+		})
+
+		text.appendTo(box)
+		this.entities_boxes.push(box)
+	}
+
+	this.show_entities()
+}
+
 Labeler.prototype.keydown = function(e) {
 	if (e.key == "+" || e.key == "=" || e.key == "-") {
 		if (e.key == "+" || e.key == "=")
