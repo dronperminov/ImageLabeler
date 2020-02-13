@@ -54,15 +54,41 @@ Labeler.prototype.get_box = function(startPoint, endPoint, label = "") {
 	}
 }
 
-Labeler.prototype.get_box_index = function(x, y) {
-	for (let i = 0; i < this.entities.length; i++) {
-		let box = this.entities[i]
+Labeler.prototype.is_box_under_point = function(box, x, y) {
+	return (x >= box.x + this.diff && y >= box.y + this.diff && x <= box.x + box.width - this.diff && y <= box.y + box.height - this.diff)
+}
 
-		if (x >= box.x + this.diff && y >= box.y + this.diff && x <= box.x + box.width - this.diff && y <= box.y + box.height - this.diff)
-			return i
+Labeler.prototype.get_box_distance = function(index, x, y) {
+	let box = this.entities[index]
+
+	let dx = x - box.x - box.width / 2
+	let dy = y - box.y - box.height / 2
+
+	return Math.sqrt(dx*dx + dy*dy) * (box.width * box.height)
+}
+
+Labeler.prototype.get_box_index = function(x, y) {
+	let indexes = []
+	for (let i = 0; i < this.entities.length; i++)
+		if (this.is_box_under_point(this.entities[i], x, y))
+			indexes.push(i)
+
+	if (indexes.length == 0)
+		return -1
+
+	let imin = 0
+	let min_dst = this.get_box_distance(indexes[0], x, y)
+
+	for (let i = 1; i < indexes.length; i++) {
+		let dst = this.get_box_distance(indexes[i], x, y)
+
+		if (dst < min_dst) {
+			min_dst = dst
+			imin = i
+		}
 	}
 
-	return -1
+	return indexes[imin]
 }
 
 Labeler.prototype.check_line = function(x, y, x1, y1, x2, y2) {
@@ -480,7 +506,7 @@ Labeler.prototype.init_from_entities = function(boxes) {
 
 		let box = $('<div class="label-box" draggable=false></div>')
 		
-		box.appendTo(this.img)		
+		box.appendTo(this.img)
 		box.css({
 			"outline": "2px solid " + this.get_color(boxes[i].label),
 			"position": "absolute",
