@@ -26,6 +26,28 @@ function Labeler(labels, colors) {
 
 	this.offsetLeft = this.img.offset().left
 	this.offsetTop = this.img.offset().top
+
+	this.initialize()
+}
+
+Labeler.prototype.initialize = function() {
+	let labeler = this
+
+	$(document).mousedown(function(e) { labeler.mousedown(e) })
+	$(document).mouseup(function(e) { labeler.mouseup(e) })
+	$(document).mousemove(function(e) { labeler.mousemove(e) })
+	$(document).keydown(function(e) { labeler.keydown(e) })
+
+	$(document).on("dragstart", function(e) {
+		if (e.target.nodeName.toUpperCase() == "IMG")
+			return false;
+	});
+
+	$("#reset-btn").click(function(e) {
+		labeler.remove_all()
+	})
+
+	this.show_entities()
 }
 
 Labeler.prototype.get_point = function(e) {
@@ -551,24 +573,3 @@ Labeler.prototype.keydown = function(e) {
 		}
 	}
 }
-
-const labels = [ "text", "table", "picture" ]
-const colors = [ "0, 0, 255", "0, 255, 0", "255, 0, 0" ]
-
-let labeler = new Labeler(labels, colors)
-
-$(document).mousedown(function(e) { labeler.mousedown(e) })
-$(document).mouseup(function(e) { labeler.mouseup(e) })
-$(document).mousemove(function(e) { labeler.mousemove(e) })
-$(document).keydown(function(e) { labeler.keydown(e) })
-
-labeler.show_entities()
-
-$(document).on("dragstart", function(e) {
-	if (e.target.nodeName.toUpperCase() == "IMG")
-		return false;
-});
-
-$("#reset-btn").click(function(e) {
-	labeler.remove_all()
-})
