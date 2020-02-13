@@ -221,7 +221,7 @@ Labeler.prototype.boxes_hover = function(p) {
 }
 
 Labeler.prototype.start_labeling = function() {
-	let select = $('<select id="label-select"><option>Select label</option><option>' + labels.join("</option><option>") + '</option></select>')
+	let select = $('<select id="label-select"><option>Select label</option><option>' + this.labels.join("</option><option>") + '</option></select>')
 
 	select.appendTo(this.currBox)
 	let width = (this.startPoint.x < this.endPoint.x ? select.width() : 0)
